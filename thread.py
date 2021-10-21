@@ -1,35 +1,52 @@
 import time
-from data import data
 import tracemalloc
-import csv
-from faker import Faker
+import requests
+import json
+from pprint import pprint
+from bs4 import BeautifulSoup
 import threading
 
-fake = Faker()
+d = {}
 
 
-def header():
-    with open('data.csv', 'w', encoding='UTF8', newline='') as file:
-        header = ['name', 'login', 'password', 'address']
-        writer = csv.DictWriter(file, fieldnames=header)
-        writer.writeheader()
+def main():
+    URL = "https://www.ukr.net/"
+    response = requests.get(URL)
+    response.encoding = 'UTF8'
+    d['site'] = URL
+    d['news'] = []
+
+    soup = BeautifulSoup(response.text, 'html.parser')
+
+    data = soup.select('section', class_='feed__section')
+
+    for i in range(6, len(data) - 4):
+        d['news'].append({})
+        d['news'][i - 6]['category'] = data[i].select_one('a').text
+        d['news'][i - 6]['time'] = data[i].select_one('time').text
+        d['news'][i - 6]['url'] = data[i].find_all(href=True)[1]['href']
+        d['news'][i - 6]['title'] = data[i].find_all(href=True)[1].text
+        d['news'][i - 6]['source'] = data[i].find_all('span')[0].text[1:-1]
+
+    with open('data.json', 'w', encoding='utf-8') as file:
+        json.dump(
+            d,
+            file,
+            indent=4,
+            ensure_ascii=False,
+        )
+        file.close()
 
 
-def single_function(row):
-    header = ['name', 'login', 'password', 'address']
-    with open('data.csv', 'a', encoding='UTF8', newline='') as file:
-        writer = csv.DictWriter(file, fieldnames=header)
-        writer.writerow(row)
-
-
-header()
-threads = []
 tracemalloc.start()
 start = time.time()
-for item in data:
-    thread = threading.Thread(target=single_function, args=(item, ))
+
+threads = []
+for item in range(1):
+    thread = threading.Thread(target=main)
     threads.append(thread)
     thread.start()
+
 for thread in threads:
     thread.join()
 
